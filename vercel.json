@@ -1,0 +1,24 @@
+{
+  "cleanUrls": false,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/gestionnaire", "destination": "/gestionnaire/index.html" },
+    { "source": "/robots.txt", "destination": "/api/seo/robots" },
+    { "source": "/sitemap.xml", "destination": "/api/seo/sitemap" }
+  ],
+  "headers": [
+    { "source": "/gestionnaire(.*)", "headers": [
+      { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+      { "key": "Cache-Control", "value": "no-store" },
+      { "key": "X-Frame-Options", "value": "DENY" },
+      { "key": "Referrer-Policy", "value": "same-origin" },
+      { "key": "X-Content-Type-Options", "value": "nosniff" }
+    ] },
+    { "source": "/api/(.*)", "headers": [
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "X-Robots-Tag", "value": "noindex" }
+    ] },
+    { "source": "/(schema|sections-render)\\.js", "headers": [ { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" } ] }
+  ],
+  "functions": { "api/[...route].js": { "maxDuration": 30 } }
+}
