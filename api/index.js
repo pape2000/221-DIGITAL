@@ -184,8 +184,13 @@ module.exports = async (req, res) => {
       }
       if (route === 'admin/selftest' && req.method === 'POST') {
         if (!needAdmin()) return; const id = 'selftest/' + crypto.randomBytes(6).toString('hex'); const payload = Buffer.from('221-' + Date.now());
-        const t0 = Date.now(); await store().put(id, payload, { contentType: 'text/plain' }); const back = await store().get(id); await store().del(id);
-        return send(res, 200, { ok: true, written: true, readBack: !!back && back.buf.equals(payload), ms: Date.now() - t0 });
+        const t0 = Date.now(); const w1 = await store().put(id, payload, { contentType: 'text/plain' }); const back = await store().get(id);
+        /* écritures successives avec contrôle de version (c'est ce que fait l'enregistrement du gestionnaire) */
+        let seq = !!back && back.etag === w1.etag, stale = false; let tag = back && back.etag;
+        for (let i = 0; i < 3 && seq; i++) { const w = await store().put(id, Buffer.from('221-v' + i + Date.now()), { ifMatch: tag, contentType: 'text/plain' }); const g = await store().get(id); seq = !!g && g.etag === w.etag; tag = g && g.etag; }
+        try { await store().put(id, Buffer.from('x'), { ifMatch: '"vieux"', contentType: 'text/plain' }); } catch (e) { stale = e.code === 'conflict'; }
+        await store().del(id);
+        return send(res, 200, { ok: true, written: true, readBack: !!back && back.buf.equals(payload), sequentialWrites: seq, staleRefused: stale, ms: Date.now() - t0 });
       }
     }
     return fail(res, 404, 'Route inconnue.', 'not_found');
