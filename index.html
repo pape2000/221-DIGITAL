@@ -2401,17 +2401,94 @@ function applySiteData(data) {
   renderLogos(data); renderProjects(data); renderHero(data); renderTestimonials(data);
   applyLogoTheme();
   document.querySelectorAll('.projects-grid .reveal:not(.is-visible)').forEach((el) => revealObs.observe(el));
+  mountSections(data); applyPublicSettings(data);
 }
 function siteReady() { document.documentElement.classList.remove('data-pending'); }
+
+/* ---- Sections personnalisées publiées : insérées après l'ancre qui les précède dans la disposition enregistrée ---- */
+const ANCHOR_EL = {
+  accueil: () => document.getElementById('accueil'), services: () => document.getElementById('services'),
+  pourquoi: () => document.getElementById('pourquoi'), methode: () => document.getElementById('methode'),
+  temoignages: () => document.getElementById('temoignages'), chiffres: () => document.getElementById('chiffres'),
+  references: () => document.getElementById('references'), footer: () => document.querySelector('footer.site-footer'),
+};
+let sxSig = '';
+function mountSections(data) {
+  const pub = (data.sections || []).filter((s) => s.status === 'published');
+  const sig = JSON.stringify([pub, data.sectionLayout]);
+  if (sig === sxSig) return; sxSig = sig;
+  document.querySelectorAll('.sx-wrap').forEach((n) => n.remove());
+  if (!pub.length || !window.Sections221) { return; }
+  const byId = new Map(pub.map((s) => [s.id, s]));
+  let ref = null; const pending = [];
+  const place = (node) => {
+    if (ref) { ref.parentNode.insertBefore(node, ref.nextSibling); ref = node; } else pending.push(node);
+  };
+  for (const id of data.sectionLayout || []) {
+    if (ANCHOR_EL[id]) { const el = ANCHOR_EL[id](); if (el) { if (!ref && pending.length) pending.forEach((n) => el.parentNode.insertBefore(n, el)); ref = el; } continue; }
+    const sec = byId.get(id); if (!sec) continue;
+    const wrap = document.createElement('div'); wrap.className = 'sx-wrap'; wrap.dataset.sx = sec.id;
+    try { wrap.appendChild(Sections221.render(sec, {})); } catch (e) { console.warn('Section ignorée', id, e); continue; }
+    place(wrap);
+  }
+  syncSx();
+}
+function syncSx() {
+  const home = (typeof currentView === 'undefined') || currentView === 'home';
+  document.querySelectorAll('.sx-wrap').forEach((n) => { n.hidden = !home; });
+}
+
+/* ---- Réglages publics (identité, SEO, maintenance, formulaires, rafraîchissement) ---- */
+let pollMs = 30000;
+function setMeta(sel, attrs, content) {
+  let el = document.head.querySelector(sel);
+  if (!content) { if (el && el.dataset.s221) el.remove(); return; }
+  if (!el) { el = document.createElement(sel.startsWith('link') ? 'link' : 'meta'); Object.keys(attrs).forEach((k) => el.setAttribute(k, attrs[k])); el.dataset.s221 = '1'; document.head.appendChild(el); }
+  el.setAttribute(sel.startsWith('link') ? 'href' : 'content', content);
+}
+function applyPublicSettings(data) {
+  const p = (data.settings && data.settings.public) || null; if (!p) return;
+  const seo = p.seo || {}, idn = p.identity || {}, pb = p.publication || {};
+  if (seo.title) document.title = seo.title;
+  if (seo.description) setMeta('meta[name="description"]', { name: 'description' }, seo.description);
+  setMeta('meta[name="keywords"]', { name: 'keywords' }, seo.keywords);
+  setMeta('meta[property="og:title"]', { property: 'og:title' }, seo.title);
+  setMeta('meta[property="og:description"]', { property: 'og:description' }, seo.description);
+  setMeta('meta[property="og:image"]', { property: 'og:image' }, seo.ogImage);
+  setMeta('link[rel="canonical"]', { rel: 'canonical' }, seo.canonical);
+  setMeta('meta[name="theme-color"]', { name: 'theme-color' }, idn.themeColor);
+  setMeta('meta[name="robots"]', { name: 'robots' }, seo.noindex ? 'noindex, nofollow' : '');
+  let ld = document.getElementById('ld221'); if (ld) ld.remove();
+  if (seo.jsonLd) {
+    ld = document.createElement('script'); ld.type = 'application/ld+json'; ld.id = 'ld221';
+    const o = { '@context': 'https://schema.org', '@type': 'Organization', name: idn.name || '221 DIGITAL', url: seo.canonical || location.origin + '/' };
+    if (idn.email) o.email = idn.email; if (idn.phone) o.telephone = idn.phone; if (idn.address) o.address = idn.address; if (idn.tagline) o.description = idn.tagline;
+    ld.textContent = JSON.stringify(o); document.head.appendChild(ld);
+  }
+  window.__forms = p.forms || {};
+  pollMs = Math.max(10, Math.min(300, pb.pollSeconds || 30)) * 1000;
+  let ov = document.getElementById('maint221');
+  const preview = /[?&]apercu\b/.test(location.search);
+  if (pb.maintenance && !preview) {
+    if (!ov) { ov = document.createElement('div'); ov.id = 'maint221'; ov.setAttribute('role', 'alert'); ov.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0A1020;color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-family:inherit'; document.body.appendChild(ov); }
+    ov.innerHTML = ''; const box = document.createElement('div'); box.style.maxWidth = '560px';
+    const h = document.createElement('h1'); h.textContent = pb.maintenanceTitle || 'Site en maintenance'; h.style.cssText = 'font-size:32px;margin:0 0 12px';
+    const t = document.createElement('p'); t.textContent = pb.maintenanceText || 'Nous revenons très bientôt.'; t.style.opacity = '.8';
+    box.append(h, t); ov.appendChild(box);
+  } else if (ov) ov.remove();
+}
+
 applySiteData(Store221.defaults());          /* contenu d'origine, remplacé dès que les données enregistrées sont lues */
-function loadSiteData() {
-  return Store221.load().then(applySiteData)
+function loadSiteData(onlyIfChanged) {
+  return Store221.load({ ifChanged: onlyIfChanged === true }).then((d) => { if (d) applySiteData(d); })
     .catch((e) => console.warn('221 DIGITAL : données du gestionnaire indisponibles, contenu d\'origine affiché.', e))
     .finally(siteReady);
 }
 loadSiteData();
 setTimeout(siteReady, 2500);
-Store221.onChange(loadSiteData);             /* mise à jour immédiate si le gestionnaire enregistre dans un autre onglet */
+Store221.onChange(() => loadSiteData());     /* mise à jour immédiate si le gestionnaire enregistre dans un autre onglet */
+(function poll() { setTimeout(() => { if (!document.hidden) loadSiteData(true); poll(); }, pollMs); })();
+try { if (!sessionStorage.getItem('hit221')) { sessionStorage.setItem('hit221', '1'); fetch('/api/hit', { method: 'POST', headers: { 'X-221': '1' }, keepalive: true }).catch(() => {}); } } catch (e) {}
 
 /* ==========================================================================
    Modale « Démarrer un projet »

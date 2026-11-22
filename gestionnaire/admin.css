@@ -82,3 +82,7 @@
   .sxu-search { max-width: none; margin-left: 0; width: 100%; } .sxu-racts { width: 100%; justify-content: flex-end; } .sxu-row { flex-wrap: wrap; }
   .sxu-seg { width: 100%; } .sxu-segb { flex: 1; padding: 10px 6px; }
 }
+/* Trois onglets sur téléphone : pas de débordement horizontal */
+.tabs { overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+@media (max-width: 480px) { .tab { padding: 12px 8px !important; font-size: 12.5px !important; letter-spacing: .02em; gap: 4px; flex: none; } .tabs { gap: 2px; } }
