@@ -1,6 +1,6 @@
 /* Serveur local de test : mêmes fonctions que Vercel, stockage = dossier (aucun accès au vrai Blob) */
 const http = require('http'), fs = require('fs'), path = require('path');
-const handler = require('../api/[...route].js');
+const handler = require('../api/index.js');
 const root = path.join(__dirname, '..');
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.ico': 'image/x-icon', '.json': 'application/json', '.png': 'image/png' };
 http.createServer((req, res) => {

@@ -42,7 +42,9 @@ function csrfOk(req) {
 
 module.exports = async (req, res) => {
   const url = new URL(req.url, 'http://x');
-  const route = url.pathname.replace(/^\/api\/?/, '').replace(/\/+$/, '');
+  /* Sur Vercel, les réécritures envoient /api/<route> vers cette fonction avec ?r=<route> ; en local, on lit le chemin. */
+  const rq = url.searchParams.get('r');
+  const route = (rq !== null ? rq : url.pathname.replace(/^\/api\/?/, '')).replace(/^\/+|\/+$/g, '');
   const parts = route.split('/');
   try {
     if (!csrfOk(req)) return fail(res, 403, 'Requête refusée (protection CSRF).', 'csrf');

@@ -3,8 +3,9 @@
   "trailingSlash": false,
   "rewrites": [
     { "source": "/gestionnaire", "destination": "/gestionnaire/index.html" },
-    { "source": "/robots.txt", "destination": "/api/seo/robots" },
-    { "source": "/sitemap.xml", "destination": "/api/seo/sitemap" }
+    { "source": "/robots.txt", "destination": "/api/index?r=seo/robots" },
+    { "source": "/sitemap.xml", "destination": "/api/index?r=seo/sitemap" },
+    { "source": "/api/:path*", "destination": "/api/index?r=:path*" }
   ],
   "headers": [
     { "source": "/gestionnaire(.*)", "headers": [
@@ -20,5 +21,5 @@
     ] },
     { "source": "/(schema|sections-render)\\.js", "headers": [ { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" } ] }
   ],
-  "functions": { "api/[...route].js": { "maxDuration": 30 } }
+  "functions": { "api/index.js": { "maxDuration": 30 } }
 }
